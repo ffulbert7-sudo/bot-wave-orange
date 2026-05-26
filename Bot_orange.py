@@ -1,4 +1,5 @@
 import re
+import sys
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
@@ -7,21 +8,22 @@ app = Flask(__name__)
 def recevoir_sms():
     data = request.get_json(silent=True)
     if not data:
+        # On affiche quand même ce qu'on reçoit pour comprendre pourquoi c'est vide
+        print(f"DEBUG: Données vides ou invalides reçues.", flush=True)
         return jsonify({"status": "error"}), 400
     
     msg = data.get("msg", "")
+    print(f"DEBUG: Message reçu : {msg}", flush=True)
     
-    # Extraction du montant (recherche un nombre suivi de FCFA)
     montant_match = re.search(r'(\d+(?:\.\d+)?)\s*FCFA', msg)
-    # Extraction du numéro de téléphone (recherche 8 ou 9 chiffres)
     num_match = re.search(r'(\d{8,9})', msg)
     
     montant = montant_match.group(1) if montant_match else "Non trouvé"
     numero = num_match.group(1) if num_match else "Non trouvé"
     
-    print(f"--- ✅ TRANSACTION DÉTECTÉE ---")
-    print(f"Montant : {montant} FCFA")
-    print(f"Numéro client : {numero}")
+    print(f"--- ✅ TRANSACTION DÉTECTÉE ---", flush=True)
+    print(f"Montant : {montant} FCFA", flush=True)
+    print(f"Numéro client : {numero}", flush=True)
     
     return jsonify({"status": "success"}), 200
 
