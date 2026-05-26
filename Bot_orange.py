@@ -1,20 +1,24 @@
-import sys
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-@app.route('/sms', methods=['POST', 'GET'])
+@app.route('/sms', methods=['POST'])
 def recevoir_sms():
-    # Récupération des données
-    data = request.form.to_dict()
-    brut = request.get_data(as_text=True)
+    # Récupérer les données JSON envoyées par l'app
+    data = request.get_json(silent=True)
     
-    # Affichage forcé
-    print("--- 📩 REQUÊTE REÇUE ---", flush=True)
-    print(f"DONNÉES FORM: {data}", flush=True)
-    print(f"DONNÉES BRUTES: {brut}", flush=True)
+    print("--- 📩 REQUÊTE REÇUE ---")
+    print(f"Données reçues : {data}")
     
-    return "OK - Recu", 200
+    if data:
+        expediteur = data.get("from", "Inconnu")
+        message = data.get("msg", "Vide")
+        print(f"Expéditeur : {expediteur}")
+        print(f"Message : {message}")
+        return jsonify({"status": "success"}), 200
+    else:
+        print("❌ Aucune donnée JSON valide reçue")
+        return jsonify({"status": "error", "message": "No JSON"}), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
