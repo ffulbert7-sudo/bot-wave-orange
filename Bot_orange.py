@@ -17,6 +17,7 @@ def extraire_donnees_orange(sms_texte):
     return None
 
 def extraire_donnees_wave(sms_texte):
+    # Cherche le montant (ex: 1000 FCFA)
     montant_match = re.search(r"([\d.,]+)\s*FCFA", sms_texte, re.IGNORECASE)
     client_match = re.search(r"\b(\d{10})\b", sms_texte)
     ref_match = re.search(r"(?:Id|Réf\.|Ref)[:\s]*([A-Z0-9_-]+)", sms_texte, re.IGNORECASE)
@@ -31,37 +32,40 @@ def extraire_donnees_wave(sms_texte):
 
 @app.route('/sms', methods=['POST'])
 def recevoir_sms():
-    data = request.json
+    # 1. Tenter de lire les données (supporte JSON ou Form-Data)
+    data = request.get_json(silent=True)
     if not data:
-        return jsonify({"status": "error", "message": "Aucune donnée reçue"}), 400
+        data = request.form.to_dict()
+        
+    if not data:
+        return jsonify({"status": "error", "message": "Aucune donnée"}), 400
         
     numero_expediteur = str(data.get("from", "")).lower()
     texte_sms = str(data.get("msg", ""))
     
-    print(f"\n📩 [SMS REÇU de {numero_expediteur}] : {texte_sms}")
+    # 2. DEBUG : Affiche tout dans les logs pour comprendre pourquoi ça bloque
+    print(f"\n--- RECEPTION ---")
+    print(f"EXPEDITEUR: {numero_expediteur}")
+    print(f"MESSAGE: {texte_sms}")
     
-    # Vérification de l'expéditeur ou du contenu pour plus de flexibilité
+    # 3. Logique de détection
     if "454" in numero_expediteur:
         donnees = extraire_donnees_orange(texte_sms)
         if donnees:
-            print(f"🍊 [ORANGE MONEY] Dépôt valide détecté !")
-            print(f"   - Montant   : {donnees['montant']} FCFA | Client : {donnees['client']} | Ref : {donnees['reference']}")
+            print(f"✅ [ORANGE MONEY] {donnees['montant']} FCFA reçu de {donnees['client']}")
+        else:
+            print("❌ Orange reçu mais données non extraites (vérifie le format du texte)")
             
-    # On vérifie si "wave" est dans l'expéditeur OU dans le texte de la notification
     elif "wave" in numero_expediteur.lower() or "wave" in texte_sms.lower():
         donnees = extraire_donnees_wave(texte_sms)
         if donnees:
-            print(f"🌊 [WAVE] Transaction valide détectée !")
-            print(f"   - Montant   : {donnees['montant']} FCFA | Client : {donnees['client']} | Ref : {donnees['reference']}")
-            
+            print(f"✅ [WAVE] {donnees['montant']} FCFA reçu de {donnees['client']}")
+        else:
+            print("❌ Wave reçu mais données non extraites (vérifie le format du texte)")
     else:
-        print(f"❓ SMS/Notif ignoré (Expéditeur: {numero_expediteur})")
+        print(f"❓ Message ignoré (ne contient ni '454' ni 'wave')")
             
     return jsonify({"status": "success"}), 200
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("🚀 LE ROBOT MULTI-RÉSEAUX (ORANGE & WAVE) EST PRÊT ET EN LIGNE !")
-    print("👉 En attente des SMS de ton smartphone...")
-    print("=" * 60)
     app.run(host='0.0.0.0', port=5000)
